@@ -1,0 +1,28 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - audioapp-data:/data
+    environment:
+      - AUDIOAPP_DATA_DIR=/data
+      - AUDIOAPP_SEPARATOR_WORKERS=1
+      - AUDIOAPP_DEMUCS_MODEL=htdemucs
+      - AUDIOAPP_DEVICE=auto
+      - AUDIOAPP_CORS_ORIGINS=["http://localhost:3000"]
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        API_PROXY_TARGET: http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  audioapp-data:
