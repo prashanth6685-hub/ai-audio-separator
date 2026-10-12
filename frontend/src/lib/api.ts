@@ -21,11 +21,22 @@ export class ApiError extends Error {
   }
 }
 
-// Baked at build time. On Render this is the backend's public URL; when unset
-// the app falls back to same-origin /api/v1 (dev server or Next.js rewrites).
-// Baked at build time. On Render this is the backend's public URL; when unset
-// the app falls back to same-origin /api/v1 (dev server or Next.js rewrites).
-const PUBLIC_API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
+// Baked at build time when available. On Render the Docker image is built
+// *without* the blueprint env vars, so NEXT_PUBLIC_API_URL is empty inside
+// the client bundle — the real value is injected at request time by the root
+// layout into window.__AAS_API_URL (see app/layout.tsx). When neither is set
+// the app falls back to same-origin /api/v1 (local dev / docker-compose,
+// where the Next.js rewrite proxy handles it).
+function runtimeApiBase(): string {
+  if (typeof window !== "undefined") {
+    const w = window as unknown as { __AAS_API_URL?: string };
+    if (typeof w.__AAS_API_URL === "string" && w.__AAS_API_URL) {
+      return w.__AAS_API_URL.replace(/\/+$/, "");
+    }
+  }
+  return process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || "";
+}
+const PUBLIC_API = runtimeApiBase();
 const BASE = PUBLIC_API ? `${PUBLIC_API}/api/v1` : "/api/v1";
 
 // Resolve a backend-provided path (e.g. a relative /api/v1/... download URL)
