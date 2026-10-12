@@ -1,0 +1,41 @@
+# Render Blueprint for the AI Audio Separator app.
+# Deploy from the Render dashboard: New -> Blueprint -> paste the repo URL,
+# or use https://render.com/deploy?repo=https://github.com/prashanth6685-hub/ai-audio-separator
+#
+# Notes:
+# - The frontend talks to the backend through Next.js rewrites (/api/*),
+#   so the browser only ever needs the frontend URL.
+# - The backend downloads the Demucs checkpoint on first use (ephemeral disk
+#   on the free tier, so the first separation job takes longer).
+# - The free tier gives the backend 512 MB RAM. Demucs separation of a full
+#   song may exceed that and get OOM-killed; if jobs die, move the backend
+#   to the Starter plan (2 GB RAM) in the Render dashboard.
+
+services:
+  - type: web
+    name: ai-audio-separator-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: AUDIOAPP_DATA_DIR
+        value: /data
+      - key: AUDIOAPP_CORS_ORIGINS
+        value: '["https://ai-audio-separator-frontend.onrender.com"]'
+      - key: AUDIOAPP_LOG_LEVEL
+        value: INFO
+
+  - type: web
+    name: ai-audio-separator-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    healthCheckPath: /
+    envVars:
+      # Next.js rewrites /api/* to this target (server-side), so the browser
+      # only needs the frontend's own URL.
+      - key: API_PROXY_TARGET
+        value: https://ai-audio-separator-backend.onrender.com
