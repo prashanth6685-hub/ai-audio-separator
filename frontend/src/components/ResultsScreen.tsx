@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ApiError, getJob, getResults } from "@/lib/api";
+import { ApiError, apiUrl, getJob, getResults } from "@/lib/api";
 import { formatBytes, formatDuration, stemDisplayName } from "@/lib/format";
 import type { JobOut, JobOutput } from "@/lib/types";
 import { StatusBadge } from "./StatusBadge";
@@ -50,7 +50,7 @@ export function ResultsScreen({ jobId, originalUrl, originalName, onRestart }: P
     outputs.forEach((o, i) => {
       setTimeout(() => {
         const a = document.createElement("a");
-        a.href = o.download_url;
+        a.href = apiUrl(o.download_url);
         a.download = `${stemDisplayName(o.stem)}.${o.format}`;
         document.body.appendChild(a);
         a.click();
@@ -134,7 +134,7 @@ export function ResultsScreen({ jobId, originalUrl, originalName, onRestart }: P
                     </p>
                   </div>
                   <a
-                    href={o.download_url}
+                    href={apiUrl(o.download_url)}
                     download={`${stemDisplayName(o.stem)}.${o.format}`}
                     className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
                   >
@@ -142,7 +142,7 @@ export function ResultsScreen({ jobId, originalUrl, originalName, onRestart }: P
                   </a>
                 </div>
                 <div className="mt-3">
-                  <WaveformPlayer src={o.download_url} label={o.label} />
+                  <WaveformPlayer src={apiUrl(o.download_url)} label={o.label} />
                 </div>
               </div>
             ))}

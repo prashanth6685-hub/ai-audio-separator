@@ -21,7 +21,19 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = "/api/v1";
+// Baked at build time. On Render this is the backend's public URL; when unset
+// the app falls back to same-origin /api/v1 (dev server or Next.js rewrites).
+// Baked at build time. On Render this is the backend's public URL; when unset
+// the app falls back to same-origin /api/v1 (dev server or Next.js rewrites).
+const PUBLIC_API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
+const BASE = PUBLIC_API ? `${PUBLIC_API}/api/v1` : "/api/v1";
+
+// Resolve a backend-provided path (e.g. a relative /api/v1/... download URL)
+// to an absolute URL when the app talks to the backend cross-origin.
+export function apiUrl(path: string): string {
+  if (PUBLIC_API && path.startsWith("/")) return `${PUBLIC_API}${path}`;
+  return path;
+}
 
 function extractMessage(data: unknown, status: number): { code: string; message: string } {
   if (data && typeof data === "object" && "detail" in data) {

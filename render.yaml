@@ -35,7 +35,10 @@ services:
     plan: free
     healthCheckPath: /
     envVars:
-      # Next.js rewrites /api/* to this target (server-side), so the browser
-      # only needs the frontend's own URL.
+      # Baked into the frontend at build time: the browser calls the backend
+      # directly, so the app works even if the /api rewrite proxy is unhappy.
+      - key: NEXT_PUBLIC_API_URL
+        value: https://ai-audio-separator-backend.onrender.com
+      # Kept as a fallback for same-origin serving (docker-compose).
       - key: API_PROXY_TARGET
         value: https://ai-audio-separator-backend.onrender.com
