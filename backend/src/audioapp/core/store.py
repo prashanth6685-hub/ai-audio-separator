@@ -18,6 +18,35 @@ TERMINAL_STATES = {"completed", "failed", "cancelled", "expired"}
 ACTIVE_STATES = {"uploaded", "validating", "queued", "processing", "encoding"}
 
 
+def recover_interrupted_jobs(store: JobStore) -> int:
+    """Mark jobs stranded in active states as failed. Call once at startup.
+
+    A backend restart (deploy, crash, OOM kill) wipes the in-memory worker
+    queue, so any job left in an active state can never resume: without this
+    it would sit at e.g. "processing" forever, and without a persistent disk
+    its row vanishes entirely (the "Job not found" seen after the 2026-10-12
+    OOM crash). Mark it failed with a clear, user-facing message instead.
+    Auto-resuming is deliberately NOT done: if the job itself caused the
+    crash (e.g. OOM), resuming would crash-loop the service.
+    """
+    message = (
+        "The server restarted while this job was running, so it could not "
+        "finish. Please upload your file and start a new job."
+    )
+    recovered = 0
+    for job in store.list_jobs(limit=10000):
+        if job["status"] in ACTIVE_STATES:
+            store.update_job(
+                job["id"],
+                status="failed",
+                stage_detail=message,
+                error_json={"code": "server_restarted", "message": message},
+            )
+            log.info("recovered interrupted job %s -> failed", job["id"])
+            recovered += 1
+    return recovered
+
+
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 

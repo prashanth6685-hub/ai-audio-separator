@@ -5,11 +5,14 @@
 # Notes:
 # - The frontend talks to the backend through Next.js rewrites (/api/*),
 #   so the browser only ever needs the frontend URL.
-# - The backend downloads the Demucs checkpoint on first use (ephemeral disk
-#   on the free tier, so the first separation job takes longer).
-# - The free tier gives the backend 512 MB RAM. Demucs separation of a full
-#   song may exceed that and get OOM-killed; if jobs die, move the backend
-#   to the Starter plan (2 GB RAM) in the Render dashboard.
+# - The backend runs on the Standard plan (2 GB RAM): the free tier's
+#   512 MB gets OOM-killed by Demucs mid-job (confirmed 2026-10-12), which
+#   also wiped the ephemeral filesystem and caused "Job not found".
+#   Starter ($7/mo) is still 512 MB — it does NOT fix the OOM.
+# - A 1 GB persistent disk (~$0.25/GB/month) is mounted at /data so jobs.db,
+#   uploads, and the Demucs checkpoint survive restarts and deploys.
+#   The backend's startup recovery marks any job stranded mid-flight by a
+#   restart as failed with a clear message instead of leaving it stuck.
 
 services:
   - type: web
@@ -17,11 +20,19 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: free
+    plan: standard
     healthCheckPath: /api/v1/health
+    disk:
+      name: audioapp-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: AUDIOAPP_DATA_DIR
         value: /data
+      # Keep the downloaded Demucs checkpoint on the persistent disk too,
+      # so the first separation after a restart isn't slow re-downloading it.
+      - key: TORCH_HOME
+        value: /data/torch-cache
       - key: AUDIOAPP_CORS_ORIGINS
         value: '["https://ai-audio-separator-frontend.onrender.com"]'
       - key: AUDIOAPP_LOG_LEVEL

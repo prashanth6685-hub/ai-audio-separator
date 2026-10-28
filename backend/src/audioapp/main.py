@@ -15,7 +15,7 @@ from audioapp.core.logging_setup import setup_logging
 from audioapp.core.queueing import LocalThreadQueue
 from audioapp.core.retention import start_sweeper
 from audioapp.core.state import AppState
-from audioapp.core.store import SQLiteJobStore
+from audioapp.core.store import SQLiteJobStore, recover_interrupted_jobs
 from audioapp.models.registry import MODELS, get_adapter
 
 log = logging.getLogger(__name__)
@@ -48,6 +48,9 @@ def build_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        recovered = recover_interrupted_jobs(store)
+        if recovered:
+            log.warning("startup: marked %d interrupted job(s) as failed", recovered)
         stop = start_sweeper(store, jobs_dir, uploads_dir, settings.retention_sweep_s)
         log.info("started: data_dir=%s workers=%d model=%s",
                  data_dir, settings.separator_workers, settings.demucs_model)
